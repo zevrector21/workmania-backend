@@ -1,0 +1,14 @@
+/* Hide Jazzmin version display */
+.jazzmin-version,
+.main-footer > div:last-child,
+.main-footer .float-right {
+    display: none !important;
+}
+
+/* static/admin/css/custom.css */
+textarea {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    border: 1px solid #ced4da !important;
+} 
