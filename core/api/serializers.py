@@ -103,7 +103,19 @@ class ProfileSerializer(serializers.ModelSerializer):
 class JobApplicationDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
-        fields = "__all__"        
+        fields = "__all__"
+
+class JobInvitationDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobInvitation
+        fields = "__all__"
+
+
+class JobOfferDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOffer
+        fields = "__all__"
+
 
 class JobPostingSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -111,8 +123,13 @@ class JobPostingSerializer(serializers.ModelSerializer):
     interview_count = serializers.ReadOnlyField()
     invite_count = serializers.ReadOnlyField()
     coin_count = serializers.ReadOnlyField()
-    is_saved = serializers.SerializerMethodField()
     my_application = serializers.SerializerMethodField()
+    my_invitation = serializers.SerializerMethodField()
+    my_offer = serializers.SerializerMethodField()
+    job_applications = serializers.SerializerMethodField()
+    job_invitations = serializers.SerializerMethodField()
+    job_offers = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
 
     def get_is_saved(self, obj):
         request = self.context.get('request')
@@ -121,13 +138,41 @@ class JobPostingSerializer(serializers.ModelSerializer):
         return False
 
     def get_my_application(self, obj):
-        request = self.context.get('request')        
+        request = self.context.get('request')
         if request and request.user.is_authenticated:
             job_application = JobApplication.objects.filter(user=request.user, job_posting=obj).first()
             if job_application:
                 return JobApplicationDetailSerializer(job_application).data
         return None
 
+    def get_my_invitation(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            job_invitation = JobInvitation.objects.filter(user=request.user, job_posting=obj, status='pending').first()
+            if job_invitation:
+                return JobInvitationDetailSerializer(job_invitation).data
+        return None
+
+    def get_my_offer(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            job_offer = JobOffer.objects.filter(user=request.user, job_posting=obj).first()
+            if job_offer:
+                return JobOfferDetailSerializer(job_offer).data
+        return None
+    
+    def get_job_applications(self, obj):
+        applications = JobApplication.objects.filter(job_posting=obj)
+        return JobApplicationDetailSerializer(applications, many=True).data
+
+    def get_job_invitations(self, obj):
+        invitations = JobInvitation.objects.filter(job_posting=obj)
+        return JobInvitationDetailSerializer(invitations, many=True).data
+    
+    def get_job_offers(self, obj):
+        offers = JobOffer.objects.filter(job_posting=obj)
+        return JobOfferDetailSerializer(offers, many=True).data
+    
     class Meta:
         model = JobPosting
         fields = "__all__"
@@ -143,12 +188,18 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
 
 class JobInvitationSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    job_posting = JobPostingSerializer(read_only=True)
+
     class Meta:
         model = JobInvitation
         fields = "__all__"
 
 
 class JobOfferSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    job_posting = JobPostingSerializer(read_only=True)
+
     class Meta:
         model = JobOffer
         fields = "__all__"

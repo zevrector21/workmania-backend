@@ -268,7 +268,7 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
 
 class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
-    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
+    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE, related_name='job_applications')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     cover_letter = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -287,13 +287,13 @@ class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
 
 class JobInvitation(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
-    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
+    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE, related_name='job_invitations')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=255, choices=(
         ('pending', 'Pending'),
         ('accepted', 'Accepted'),
-        ('rejected', 'Rejected'),
+        ('declined', 'Declined'),
         ('cancelled', 'Cancelled')),
         default='pending'
     )
@@ -303,13 +303,14 @@ class JobInvitation(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
 
 class JobOffer(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
-    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
+    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE, related_name='job_offers')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=255, choices=(
         ('pending', 'Pending'),
         ('accepted', 'Accepted'),
         ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
         ('cancelled', 'Cancelled')),
         default='pending'
     )
@@ -319,7 +320,7 @@ class JobOffer(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
 
 class JobMilestone(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
-    job_offer = models.ForeignKey(JobOffer, on_delete=models.CASCADE)
+    job_offer = models.ForeignKey(JobOffer, on_delete=models.CASCADE, related_name='job_milestones')
     slug = models.SlugField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField(null=True, blank=True)

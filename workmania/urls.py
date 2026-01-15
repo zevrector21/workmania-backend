@@ -37,6 +37,12 @@ job_postings_routes.register(
     basename='job_applications',
     parents_query_lookups=['job_posting__id']
 )
+job_postings_routes.register(
+    r'job_invitations',
+    api_views.JobInvitationViewSet,
+    basename='job_invitations',
+    parents_query_lookups=['job_posting__id']
+)
 router.register(
     r'resources',
     api_views.ResourceViewSet,
