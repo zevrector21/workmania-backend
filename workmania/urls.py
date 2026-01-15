@@ -26,10 +26,16 @@ app_routes = router.register(
     account_views.UserViewSet,
     basename='users'
 )
-app_routes = router.register(
+job_postings_routes = router.register(
     r'job_postings',
     api_views.JobPostingViewSet,
     basename='job_postings'
+)
+job_postings_routes.register(
+    r'job_applications',
+    api_views.JobApplicationViewSet,
+    basename='job_applications',
+    parents_query_lookups=['job_posting__id']
 )
 router.register(
     r'resources',

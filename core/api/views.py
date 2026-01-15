@@ -71,6 +71,20 @@ class JobPostingViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             filters = Q()
 
+            group = self.request.GET.get('group')
+            if group == 'saved':
+                saved_jobs = SavedJob.objects.filter(user=self.request.user)
+                job_posting_ids = saved_jobs.values_list('job_posting__id', flat=True)
+                filters &= Q(id__in=job_posting_ids)
+
+            if group == 'relevant':
+                user_profile = self.request.user.profile
+                skills = user_profile.skills.split(',') if user_profile.skills else []
+                relevant_q = Q()
+                for skill in skills:
+                    relevant_q |= Q(skills__icontains=skill)
+                filters &= relevant_q
+
             search = self.request.GET.get('search')
             if search:
                 for word in search.split():
@@ -172,18 +186,30 @@ class JobPostingViewSet(viewsets.ModelViewSet):
         else:
             queryset = JobPosting.objects.filter(pk=self.kwargs['pk'])
         return queryset
-    
-    @action(methods=['get'], detail=False, permission_classes=[IsAuthenticated])
-    def saved(self, request, *args, **kwargs):
-        saved_jobs = SavedJob.objects.filter(user=request.user)
-        job_posting_ids = saved_jobs.values_list('job_posting__id', flat=True)
-        queryset = JobPosting.objects.filter(id__in=job_posting_ids)
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+
+    @action(methods=["post", "delete"], detail=True, permission_classes=[IsAuthenticated])
+    def save(self, request, pk=None):
+        job_posting = self.get_object()
+        if request.method == "DELETE":
+            SavedJob.objects.filter(user=request.user, job_posting=job_posting).delete()
+            return Response({"status": "job unsaved"})
+        else:
+            SavedJob.objects.get_or_create(user=request.user, job_posting=job_posting)
+            return Response({"status": "job saved"})
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class JobApplicationViewSet(viewsets.ModelViewSet):
+    serializer_class = JobApplicationSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        return JobApplication.objects.filter(job_posting_id=self.kwargs["parent_lookup_job_posting__id"])
+
+    def perform_create(self, serializer):
+        serializer.save(
+            user=self.request.user,
+            job_posting_id=self.kwargs["parent_lookup_job_posting__id"],
+        )

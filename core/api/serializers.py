@@ -100,18 +100,43 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class JobApplicationDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobApplication
+        fields = "__all__"        
+
 class JobPostingSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     proposal_count = serializers.ReadOnlyField()
     interview_count = serializers.ReadOnlyField()
     invite_count = serializers.ReadOnlyField()
     coin_count = serializers.ReadOnlyField()
+    is_saved = serializers.SerializerMethodField()
+    my_application = serializers.SerializerMethodField()
+
+    def get_is_saved(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return SavedJob.objects.filter(user=request.user, job_posting=obj).exists()
+        return False
+
+    def get_my_application(self, obj):
+        request = self.context.get('request')        
+        if request and request.user.is_authenticated:
+            job_application = JobApplication.objects.filter(user=request.user, job_posting=obj).first()
+            if job_application:
+                return JobApplicationDetailSerializer(job_application).data
+        return None
+
     class Meta:
         model = JobPosting
         fields = "__all__"
 
 
+
 class JobApplicationSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    job_posting = JobPostingSerializer(read_only=True)
     class Meta:
         model = JobApplication
         fields = "__all__"

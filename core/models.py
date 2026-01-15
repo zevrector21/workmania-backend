@@ -9,6 +9,7 @@ from .mixins import UUIDPrimaryKeyMixin, CreatedModifiedMixin
 from dateutil.relativedelta import relativedelta
 
 JOB_DURATION_CHOICES = (
+    ('less_than_1_week', 'less than 1 week'),
     ('less_than_1_month', 'less than 1 month'),
     ('one_to_three_months', '1-3 months'),
     ('three_to_six_months', '3-6 months'),
@@ -268,12 +269,11 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
 class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
-    freelancer = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     cover_letter = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     duration = models.CharField(max_length=255, choices=JOB_DURATION_CHOICES, null=True, blank=True)
     status = models.CharField(max_length=255, choices=(
-        ('draft', 'Draft'),
         ('pending', 'Pending'),
         ('accepted', 'Accepted'),
         ('rejected', 'Rejected'),
@@ -283,12 +283,12 @@ class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     attachments = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.job_posting.title} - {self.freelancer.email}"
+        return f"{self.job_posting.title} - {self.user}"
 
 
 class JobInvitation(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
-    freelancer = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=255, choices=(
         ('pending', 'Pending'),
@@ -299,12 +299,12 @@ class JobInvitation(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     )
 
     def __str__(self):
-        return f"{self.job_posting.title} - {self.freelancer.email}"
+        return f"{self.job_posting.title} - {self.user}"
 
 
 class JobOffer(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
-    freelancer = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=255, choices=(
         ('pending', 'Pending'),
@@ -315,7 +315,7 @@ class JobOffer(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     )
 
     def __str__(self):
-        return f"{self.job_posting.title} - {self.freelancer.email}"
+        return f"{self.job_posting.title} - {self.user}"
 
 
 class JobMilestone(UUIDPrimaryKeyMixin, CreatedModifiedMixin):

@@ -45,17 +45,17 @@ admin.site.register(JobPosting, JobPostingAdmin)
 
 
 class JobApplicationAdmin(admin.ModelAdmin):
-    list_display = ['job_posting', 'freelancer', 'cover_letter', 'price', 'duration', 'status', 'attachments']
+    list_display = ['job_posting', 'user', 'cover_letter', 'price', 'duration', 'status', 'attachments']
 admin.site.register(JobApplication, JobApplicationAdmin)
 
 
 class JobInvitationAdmin(admin.ModelAdmin):
-    list_display = ['job_posting', 'freelancer', 'description', 'status']
+    list_display = ['job_posting', 'user', 'description', 'status']
 admin.site.register(JobInvitation, JobInvitationAdmin)
 
 
 class JobOfferAdmin(admin.ModelAdmin):
-    list_display = ['job_posting', 'freelancer', 'price', 'status']
+    list_display = ['job_posting', 'user', 'price', 'status']
 admin.site.register(JobOffer, JobOfferAdmin)
 
 
