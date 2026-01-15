@@ -40,7 +40,7 @@ class ProfileAdmin(admin.ModelAdmin):
 admin.site.register(Profile, ProfileAdmin)
 
 class JobPostingAdmin(admin.ModelAdmin):
-    list_display = ['client', 'title', 'description', 'skills', 'category', 'type', 'size', 'duration', 'experience_level', 'price', 'languages', 'developers_needed', 'is_active', 'status']
+    list_display = ['user', 'title', 'description', 'skills', 'categories', 'working_type', 'size', 'duration', 'experience_level', 'price', 'languages', 'developers_needed', 'is_active', 'status']
 admin.site.register(JobPosting, JobPostingAdmin)
 
 
@@ -87,3 +87,7 @@ admin.site.register(Plan, PlanAdmin)
 class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ['user', 'plan', 'start_date', 'end_date', 'status']
 admin.site.register(Subscription, SubscriptionAdmin)
+
+class SavedJobAdmin(admin.ModelAdmin):
+    list_display = ['user', 'job_posting']
+admin.site.register(SavedJob, SavedJobAdmin)

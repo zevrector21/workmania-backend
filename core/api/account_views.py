@@ -30,7 +30,7 @@ class UserViewSet(
 
     def get_queryset(self):
         if self.action == 'list':
-            filters = Q(profile__visibility_status="public")
+            filters = Q(profile__visibility_status="public", profile__completion_percentage__gte=50)
 
             search = self.request.GET.get('search')
             if search:
@@ -63,6 +63,13 @@ class UserViewSet(
                 for skill in skills.split(','):
                     skill_q |= Q(profile__skills__icontains=skill)
                 filters &= skill_q
+
+            categories = self.request.GET.get('categories')
+            if categories:
+                category_q = Q()
+                for skill in categories.split(','):
+                    category_q |= Q(profile__categories__icontains=skill)
+                filters &= category_q
             
             english_level = self.request.GET.get('english_level')
             if english_level and english_level != "any":

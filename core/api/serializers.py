@@ -68,6 +68,8 @@ class CustomRegisterSerializer(RegisterSerializer):
         }
 
     def custom_signup(self, request, user):
+        user.role = self.validated_data.get("role", "")
+        user.save()
         Profile.objects.create(user=user)
 
 
@@ -89,8 +91,9 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     avatar = ResourceSerializer()
-    profile_completion_percentage = serializers.ReadOnlyField(source='get_profile_completion_percentage')
-    coins_available = serializers.ReadOnlyField(source='get_coins_available')
+    completion_percentage = serializers.ReadOnlyField()
+    posted_jobs_count = serializers.ReadOnlyField()
+    coins_available = serializers.ReadOnlyField()
 
     class Meta:
         model = Profile
@@ -98,6 +101,11 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class JobPostingSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    proposal_count = serializers.ReadOnlyField()
+    interview_count = serializers.ReadOnlyField()
+    invite_count = serializers.ReadOnlyField()
+    coin_count = serializers.ReadOnlyField()
     class Meta:
         model = JobPosting
         fields = "__all__"

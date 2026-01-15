@@ -26,6 +26,11 @@ app_routes = router.register(
     account_views.UserViewSet,
     basename='users'
 )
+app_routes = router.register(
+    r'job_postings',
+    api_views.JobPostingViewSet,
+    basename='job_postings'
+)
 router.register(
     r'resources',
     api_views.ResourceViewSet,

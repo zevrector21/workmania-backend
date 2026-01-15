@@ -120,11 +120,11 @@ class Profile(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     website = models.URLField(max_length=255, null=True, blank=True)
-    timezone = models.CharField(max_length=255, null=True, blank=True)
+    timezone = models.CharField(max_length=255, null=True, blank=True, default='utc')
 
     title = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=0)
     verifications = models.JSONField(null=True, blank=True)
     languages = models.JSONField(null=True, blank=True)
     educations = models.JSONField(null=True, blank=True)
@@ -139,6 +139,8 @@ class Profile(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     total_jobs = models.IntegerField(null=True, blank=True, default=0)
     total_hours = models.FloatField(null=True, blank=True, default=0)
     rating = models.FloatField(null=True, blank=True)
+    completion_percentage = models.FloatField(null=True, blank=True, default=0)
+    hire_rate = models.FloatField(null=True, blank=True, default=0)
 
     working_availability = models.CharField(max_length=255, choices=(
         ('none', 'None'),
@@ -159,52 +161,81 @@ class Profile(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
     def __str__(self):
         return f"{self.user.email} - {self.user.first_name} {self.user.last_name}"
-
-    @property
-    def get_rating(self):
-        return 50
-
-    @property
-    def get_profile_completion_percentage(self):
-        return 70
     
     @property
-    def get_coins_available(self):
+    def coins_available(self):
         return 240
+    
+    @property
+    def posted_jobs_count(self):
+        return JobPosting.objects.filter(user=self.user).count()
+
+    def calculate_profile_completion(self):
+        score = 0
+
+        if self.avatar:
+            score += 10
+        if self.title:
+            score += 10
+        if self.description:
+            score += 10
+        if self.skills:
+            score += 15
+        if self.categories:
+            score += 10
+        if self.country and self.city:
+            score += 5
+        if self.price and self.price > 0:
+            score += 5
+        if self.working_availability != 'none':
+            score += 5
+        if self.portfolios and len(self.portfolios) > 0:
+            score += 10
+        if self.educations and len(self.educations) > 0:
+            score += 10
+        if self.experiences and len(self.experiences) > 0:
+            score += 10
+
+        return min(score, 100)
+
+    def save(self, *args, **kwargs):
+        self.completion_percentage = self.calculate_profile_completion()
+        super().save(*args, **kwargs)
 
 
 class JobPosting(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
-    client = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     slug = models.SlugField(max_length=255, null=True, blank=True)
     title = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    skills = models.JSONField(null=True, blank=True)
-    category = models.CharField(max_length=255, choices=(
-        ('development', 'Development'),
-        ('design', 'Design'),
-        ('marketing', 'Marketing'),
-        ('writing', 'Writing'),
-        ('translation', 'Translation'),
-        ('other', 'Other'),
-    ), null=True, blank=True)
-    type = models.CharField(max_length=255, choices=(
-        ('full_time', 'Full Time'),
+    skills = models.TextField(null=True, blank=True)
+    categories = models.TextField(null=True, blank=True)
+    compensation_type = models.CharField(max_length=255, choices=(
+        ('fixed_price', 'Fixed price'),
+        ('hourly', 'Hourly'),
+    ), default='fixed_price', null=True, blank=True)
+    working_type = models.CharField(max_length=255, choices=(
         ('part_time', 'Part Time'),
-    ), null=True, blank=True)
+        ('full_time', 'Full Time'),
+    ), default='part_time', null=True, blank=True)
     size = models.CharField(max_length=255, choices=(
         ('small', 'Small'),
         ('medium', 'Medium'),
         ('large', 'Large'),
-    ), null=True, blank=True)
-    duration = models.CharField(max_length=255, choices=JOB_DURATION_CHOICES, null=True, blank=True)
+    ), default='small', null=True, blank=True)
+    duration = models.CharField(max_length=255,
+        choices=JOB_DURATION_CHOICES,
+        default="less_than_1_month",
+        null=True, blank=True
+    )
     experience_level = models.CharField(max_length=255, choices=(
         ('entry_level', 'Entry Level'),
         ('mid_level', 'Intermediate Level'),
         ('expert_level', 'Expert Level'),
-    ), null=True, blank=True)
+    ), default="entry_level", null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     languages = models.JSONField(null=True, blank=True)
-    developers_needed = models.IntegerField(null=True, blank=True)
+    developers_needed = models.IntegerField(null=True, blank=True, default=1)
     is_active = models.BooleanField(default=True)
     status = models.CharField(max_length=255, choices=(
         ('draft', 'Draft'),
@@ -213,13 +244,26 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
         ('offered', 'Offered'),
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
-    ), default='draft')
+    ), default='draft', null=True, blank=True)    
 
     def __str__(self):
-        return f"{self.title} - {self.client.name}"
+        return f"{self.title} - {self.user.first_name} {self.user.last_name}"
+    
+    @property
+    def proposal_count(self):
+        return JobApplication.objects.filter(job_posting=self, status__in=['pending', 'accepted', 'rejected']).count()
 
-    def get_coins_needed(self):
-        return 0
+    @property
+    def interview_count(self):
+        return JobApplication.objects.filter(job_posting=self, status='accepted').count()
+
+    @property
+    def invite_count(self):
+        return JobInvitation.objects.filter(job_posting=self).count()
+
+    @property
+    def coin_count(self):
+        return 2
 
 
 class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
@@ -234,7 +278,7 @@ class JobApplication(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
         ('accepted', 'Accepted'),
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled')),
-        default='draft'
+        default='pending'
     )
     attachments = models.JSONField(null=True, blank=True)
 
@@ -360,3 +404,9 @@ class Message(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     def __str__(self):
         return f"{self.sender.email} - {self.recipient.email}"
 
+class SavedJob(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_jobs')
+    job_posting = models.ForeignKey(JobPosting, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user} - {self.job_posting}"
