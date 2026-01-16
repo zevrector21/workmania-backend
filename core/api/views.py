@@ -1,3 +1,4 @@
+from warnings import filters
 from django.conf import settings
 from django.db.models import Q
 from rest_framework import viewsets, mixins
@@ -70,47 +71,73 @@ class JobPostingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.action == 'list':
-            filters = Q()
+            filters = ~Q(status__in=['draft'])
 
-            if self.request.user:
-                group = self.request.GET.get('group')
-                if group == 'saved':
-                    saved_jobs = SavedJob.objects.filter(user=self.request.user)
-                    job_posting_ids = saved_jobs.values_list('job_posting__id', flat=True)
-                    filters &= Q(id__in=job_posting_ids)
+            group = self.request.GET.get('group')
+            if self.request.user and self.request.user.is_authenticated:
+                if self.request.user.role == 'freelancer':
+                    if group == 'saved':
+                        saved_jobs = SavedJob.objects.filter(user=self.request.user)
+                        job_posting_ids = saved_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
 
-                if group == 'relevant':
-                    user_profile = self.request.user.profile
-                    skills = user_profile.skills.split(',') if user_profile.skills else []
-                    relevant_q = Q()
-                    for skill in skills:
-                        relevant_q |= Q(skills__icontains=skill)
-                    filters &= relevant_q
+                    if group == 'relevant':
+                        user_profile = self.request.user.profile
+                        skills = user_profile.skills.split(',') if user_profile.skills else []
+                        relevant_q = Q()
+                        for skill in skills:
+                            relevant_q |= Q(skills__icontains=skill)
+                        filters &= relevant_q
+                    
+                    if group == 'applied':
+                        applied_jobs = JobApplication.objects.filter(user=self.request.user, status__in=['pending'])
+                        job_posting_ids = applied_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
+
+                    if group == 'invited':
+                        invited_jobs = JobInvitation.objects.filter(user=self.request.user, status__in=['pending'])
+                        job_posting_ids = invited_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
+
+                    if group == 'interviewed':
+                        interview_jobs = JobApplication.objects.filter(user=self.request.user, status='accepted')
+                        job_posting_ids = interview_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
+
+                    if group == 'offered':
+                        hired_jobs = JobOffer.objects.filter(user=self.request.user, status__in=['pending'])
+                        job_posting_ids = hired_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
+
+                    if group == 'archived':
+                        interview_jobs = JobApplication.objects.filter(user=self.request.user, status__in=['cancelled', 'rejected'])
+                        job_posting_ids = interview_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
                 
-                if group == 'applied':
-                    applied_jobs = JobApplication.objects.filter(user=self.request.user, status__in=['pending'])
-                    job_posting_ids = applied_jobs.values_list('job_posting__id', flat=True)
-                    filters &= Q(id__in=job_posting_ids)
+                if self.request.user.role == 'client':
+                    if group == 'all':
+                        filters &= Q(user=self.request.user)
+                    
+                    if group == 'posted':
+                        filters &= Q(user=self.request.user) & ~Q(status__in=['draft'])
+                    
+                    if group == 'draft':
+                        filters &= Q(user=self.request.user, status='draft')
 
-                if group == 'invited':
-                    invited_jobs = JobInvitation.objects.filter(user=self.request.user, status__in=['pending'])
-                    job_posting_ids = invited_jobs.values_list('job_posting__id', flat=True)
-                    filters &= Q(id__in=job_posting_ids)
+                    if group == 'interviewed':
+                        interview_jobs = JobApplication.objects.filter(job_posting__user=self.request.user, status='accepted')
+                        job_posting_ids = interview_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
 
-                if group == 'interviewed':
-                    interview_jobs = JobApplication.objects.filter(user=self.request.user, status='accepted')
-                    job_posting_ids = interview_jobs.values_list('job_posting__id', flat=True)
-                    filters &= Q(id__in=job_posting_ids)
+                    if group == 'hired':
+                        hired_jobs = JobOffer.objects.filter(job_posting__user=self.request.user, status='accepted')
+                        job_posting_ids = hired_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
 
-                if group == 'offered':
-                    hired_jobs = JobOffer.objects.filter(user=self.request.user, status__in=['pending'])
-                    job_posting_ids = hired_jobs.values_list('job_posting__id', flat=True)
-                    filters &= Q(id__in=job_posting_ids)
-
-                # if group == 'archived':
-                #     interview_jobs = JobApplication.objects.filter(user=self.request.user, status__in=['cancelled', 'rejected'])
-                #     job_posting_ids = interview_jobs.values_list('job_posting__id', flat=True)
-                #     filters &= Q(id__in=job_posting_ids)
+                    if group == 'finished':
+                        finished_jobs = JobOffer.objects.filter(job_posting__user=self.request.user, status='completed')
+                        job_posting_ids = finished_jobs.values_list('job_posting__id', flat=True)
+                        filters &= Q(id__in=job_posting_ids)
 
             search = self.request.GET.get('search')
             if search:
@@ -233,18 +260,44 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
-        return JobApplication.objects.filter(job_posting_id=self.kwargs["parent_lookup_job_posting__id"])
+        if self.action == 'list':
+            filters = Q(job_posting_id=self.kwargs["parent_lookup_job_posting__id"])
+
+            group = self.request.GET.get('group')
+            if group == 'all':
+                pass
+            
+            if group == "interviewed":
+                filters &= Q(status='accepted')
+            
+            if group == 'offered':
+                filters &= Q(status='pending')
+            
+            if group == "archived":
+                filters &= Q(status__in=['cancelled', 'rejected'])
+
+            queryset = JobApplication.objects.filter(filters)
+        else:
+            queryset = JobApplication.objects.filter(pk=self.kwargs['pk'])
+        return queryset
 
     def perform_create(self, serializer):
-        serializer.save(
-            user=self.request.user,
-            job_posting_id=self.kwargs["parent_lookup_job_posting__id"],
-        )
-        JobInvitation.objects.filter(
+        job_invitation = JobInvitation.objects.filter(
             user=self.request.user,
             job_posting_id=self.kwargs["parent_lookup_job_posting__id"],
             status='pending'
-        ).update(status='accepted')  # Update invitation status if exists
+        ).first()
+        job_application_status = 'pending'
+        if job_invitation:
+            job_application_status = 'accepted'
+            job_invitation.status = 'accepted'
+            job_invitation.save()
+
+        serializer.save(
+            user=self.request.user,
+            job_posting_id=self.kwargs["parent_lookup_job_posting__id"],
+            status=job_application_status
+        )
 
 class JobInvitationViewSet(viewsets.ModelViewSet):
     serializer_class = JobInvitationSerializer
@@ -252,3 +305,5 @@ class JobInvitationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return JobInvitation.objects.filter(job_posting_id=self.kwargs["parent_lookup_job_posting__id"])
+
+

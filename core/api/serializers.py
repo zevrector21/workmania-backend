@@ -22,6 +22,13 @@ class ResourceSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+
+    def get_is_saved(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return SavedFreelancer.objects.filter(user=request.user, freelancer=obj).exists()
+        return False
 
     def __init__(self, *args, **kwargs):
         kwargs["partial"] = True
@@ -50,6 +57,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "created",
             "profile",
+            "is_saved",
         )
 
 
@@ -101,11 +109,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class JobApplicationDetailSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
     class Meta:
         model = JobApplication
         fields = "__all__"
 
 class JobInvitationDetailSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
     class Meta:
         model = JobInvitation
         fields = "__all__"
@@ -167,7 +177,7 @@ class JobPostingSerializer(serializers.ModelSerializer):
 
     def get_job_invitations(self, obj):
         invitations = JobInvitation.objects.filter(job_posting=obj)
-        return JobInvitationDetailSerializer(invitations, many=True).data
+        return JobInvitationSerializer(invitations, many=True).data
     
     def get_job_offers(self, obj):
         offers = JobOffer.objects.filter(job_posting=obj)
@@ -188,8 +198,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
 
 class JobInvitationSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    job_posting = JobPostingSerializer(read_only=True)
+    # user = UserSerializer(read_only=True)
+    # job_posting = JobPostingSerializer(read_only=True)
 
     class Meta:
         model = JobInvitation

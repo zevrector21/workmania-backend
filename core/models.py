@@ -169,7 +169,7 @@ class Profile(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     
     @property
     def posted_jobs_count(self):
-        return JobPosting.objects.filter(user=self.user).count()
+        return JobPosting.objects.filter(user=self.user).exclude(status='draft').count()
 
     def calculate_profile_completion(self):
         score = 0
@@ -240,8 +240,8 @@ class JobPosting(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
     is_active = models.BooleanField(default=True)
     status = models.CharField(max_length=255, choices=(
         ('draft', 'Draft'),
-        ('pending', 'Pending'),
-        ('interviewing', 'Interviewing'),
+        ('posted', 'Posted'),
+        ('interviewed', 'Interviewed'),
         ('offered', 'Offered'),
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
@@ -411,3 +411,10 @@ class SavedJob(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
 
     def __str__(self):
         return f"{self.user} - {self.job_posting}"
+
+class SavedFreelancer(UUIDPrimaryKeyMixin, CreatedModifiedMixin):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_users')
+    freelancer = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user} - {self.freelancer}"

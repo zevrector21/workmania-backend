@@ -91,3 +91,7 @@ admin.site.register(Subscription, SubscriptionAdmin)
 class SavedJobAdmin(admin.ModelAdmin):
     list_display = ['user', 'job_posting']
 admin.site.register(SavedJob, SavedJobAdmin)
+
+class SavedFreelancerAdmin(admin.ModelAdmin):
+    list_display = ['user', 'freelancer']
+admin.site.register(SavedFreelancer, SavedFreelancerAdmin)

@@ -32,6 +32,43 @@ class UserViewSet(
         if self.action == 'list':
             filters = Q(profile__visibility_status="public", profile__completion_percentage__gte=50)
 
+            group = self.request.GET.get('group')
+            if self.request.user:
+                if group == 'saved':
+                    saved_freelancers = SavedFreelancer.objects.filter(user=self.request.user)
+                    freelancer_ids = saved_freelancers.values_list('freelancer__id', flat=True)
+                    filters &= Q(id__in=freelancer_ids)
+                
+                job_posting_id = self.request.GET.get('job_posting_id')
+                content_type = self.request.GET.get('content_type')
+                if job_posting_id:
+                    if content_type == 'invitations':
+                        if group == 'invited':
+                            job_invitations = JobInvitation.objects.filter(job_posting__id=job_posting_id) 
+                            freelancer_ids = job_invitations.values_list('user__id', flat=True)
+                            filters &= Q(id__in=freelancer_ids)
+
+                    if content_type == 'proposals':
+                        if group == 'all':
+                            job_applications = JobApplication.objects.filter(job_posting__id=job_posting_id) 
+                            freelancer_ids = job_applications.values_list('user__id', flat=True)
+                            filters &= Q(id__in=freelancer_ids)
+
+                        if group == 'interviewed':
+                            job_applications = JobApplication.objects.filter(job_posting__id=job_posting_id, status='accepted') 
+                            freelancer_ids = job_applications.values_list('user__id', flat=True)
+                            filters &= Q(id__in=freelancer_ids)
+
+                        if group == 'offered':
+                            job_offers = JobOffer.objects.filter(job_posting__id=job_posting_id) 
+                            freelancer_ids = job_offers.values_list('user__id', flat=True)
+                            filters &= Q(id__in=freelancer_ids)
+
+                        if group == 'archived':
+                            archived_users = JobApplication.objects.filter(job_posting__id=job_posting_id, status__in=['rejected', 'cancelled']) 
+                            freelancer_ids = archived_users.values_list('user__id', flat=True)
+                            filters &= Q(id__in=freelancer_ids)
+
             search = self.request.GET.get('search')
             if search:
                 for word in search.split():
@@ -114,6 +151,16 @@ class UserViewSet(
     def me(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+    @action(methods=["post", "delete"], detail=True, permission_classes=[IsAuthenticated])
+    def save(self, request, pk=None):
+        freelancer = self.get_object()
+        if request.method == "DELETE":
+            SavedFreelancer.objects.filter(user=request.user, freelancer=freelancer).delete()
+            return Response({"status": "freelancer unsaved"})
+        else:
+            SavedFreelancer.objects.get_or_create(user=request.user, freelancer=freelancer)
+            return Response({"status": "freelancer saved"})
 
     @action(methods=['delete'], detail=False, permission_classes=[IsAuthenticated])
     def delete(self, request, *args, **kwargs):
